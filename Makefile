@@ -64,8 +64,8 @@ $(THEME_RESOURCE): $(MANIFEST) $(RESOURCE_SOURCES) Makefile
 check: $(THEME_RESOURCE) $(USER_THEME_CSS) $(GTK3_CSS) $(GTK4_CSS)
 	@npm run check
 	@cmp -s "$(BUILD_THEME_DIR)/gdm.css" "$(USER_THEME_CSS)" || { echo "error: GDM and user Shell stylesheets differ" >&2; exit 1; }
-	@grep -Fq 'Managed by gdm-catppuccin-mocha' "$(GTK3_CSS)" || { echo "error: GTK 3 override is missing its managed marker" >&2; exit 1; }
-	@grep -Fq 'Managed by gdm-catppuccin-mocha' "$(GTK4_CSS)" || { echo "error: GTK 4 override is missing its managed marker" >&2; exit 1; }
+	@grep -Fq 'Managed by gnome-catppuccin-mocha' "$(GTK3_CSS)" || { echo "error: GTK 3 override is missing its managed marker" >&2; exit 1; }
+	@grep -Fq 'Managed by gnome-catppuccin-mocha' "$(GTK4_CSS)" || { echo "error: GTK 4 override is missing its managed marker" >&2; exit 1; }
 	@grep -Fq '#313244' "$(GTK3_CSS)" && grep -Fq '#cdd6f4' "$(GTK3_CSS)" || { echo "error: GTK 3 override is missing Catppuccin colors" >&2; exit 1; }
 	@grep -Fq '#1e1e2e' "$(GTK4_CSS)" && grep -Fq '#89b4fa' "$(GTK4_CSS)" || { echo "error: GTK 4 override is missing Catppuccin colors" >&2; exit 1; }
 	@set -eu; \

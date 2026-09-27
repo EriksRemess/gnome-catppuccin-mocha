@@ -1,4 +1,4 @@
-# Catppuccin Mocha for GNOME and GDM
+# gnome-catppuccin-mocha
 
 A maintainable Catppuccin Mocha recoloring of GNOME Shell 50.1, GDM, GTK 3,
 and GTK 4/libadwaita. GNOME Shell and GDM are compiled from the same pinned
@@ -120,8 +120,8 @@ For packaging or installer testing, `DESTDIR` stages the GDM resource without
 calling `update-alternatives`:
 
 ```sh
-make install DESTDIR=/tmp/gdm-catppuccin-stage
-make uninstall DESTDIR=/tmp/gdm-catppuccin-stage
+make install DESTDIR=/tmp/gnome-catppuccin-stage
+make uninstall DESTDIR=/tmp/gnome-catppuccin-stage
 ```
 
 ## Refresh the GNOME source

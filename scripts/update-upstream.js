@@ -52,7 +52,7 @@ async function fetchChecked(url, accept) {
   const response = await fetch(url, {
     headers: {
       Accept: accept,
-      'User-Agent': 'gdm-catppuccin-mocha-updater',
+      'User-Agent': 'gnome-catppuccin-mocha-updater',
     },
     redirect: 'follow',
   });
@@ -103,7 +103,7 @@ const archiveResponse = await fetchChecked(
   'application/gzip',
 );
 const archive = Buffer.from(await archiveResponse.arrayBuffer());
-const temporaryDirectory = await mkdtemp(join(tmpdir(), 'gdm-catppuccin-upstream-'));
+const temporaryDirectory = await mkdtemp(join(tmpdir(), 'gnome-catppuccin-upstream-'));
 const archivePath = join(temporaryDirectory, 'gnome-shell.tar.gz');
 const extractDirectory = join(temporaryDirectory, 'extract');
 const stagedVendor = join(dirname(vendorDirectory), `.gnome-shell-theme.next-${process.pid}`);

@@ -16,7 +16,9 @@ import { fileURLToPath } from 'node:url';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const themeName = 'catppuccin-mocha';
-const markerName = '.gdm-catppuccin-mocha-managed.json';
+const markerName = '.gnome-catppuccin-mocha-managed.json';
+const legacyMarkerNames = ['.gdm-catppuccin-mocha-managed.json'];
+const markerNames = new Set([markerName, ...legacyMarkerNames]);
 const arguments_ = process.argv.slice(2);
 const action = arguments_.shift();
 let stagedHome;
@@ -49,7 +51,6 @@ const themeTarget = join(themeRoot, themeName);
 const themeSource = join(projectRoot, 'build/user-theme', themeName);
 const themeCssRelativePath = 'gnome-shell/gnome-shell.css';
 const themeCssTarget = join(themeTarget, themeCssRelativePath);
-const themeMarker = join(themeTarget, markerName);
 const legacyTheme = join(userHome, '.themes', themeName);
 const gtkFiles = [
   {
@@ -102,7 +103,7 @@ async function snapshotDirectory(directory, ignoreMarker = false) {
       const entryPath = join(path, entry.name);
       const relativePath = relative(directory, entryPath);
 
-      if (ignoreMarker && relativePath === markerName) continue;
+      if (ignoreMarker && markerNames.has(relativePath)) continue;
 
       if (entry.isDirectory()) {
         directories.push(relativePath);
@@ -142,24 +143,38 @@ function snapshotDifferences(expected, actual) {
 }
 
 async function readThemeMarker() {
-  const contents = await readOptional(themeMarker);
-  if (!contents) return null;
+  const markers = [];
+
+  for (const name of markerNames) {
+    const path = join(themeTarget, name);
+    const contents = await readOptional(path);
+    if (contents) markers.push({ contents, path });
+  }
+
+  if (markers.length === 0) return null;
+  if (markers.length > 1) {
+    throw new Error(`refusing theme with multiple ownership markers: ${themeTarget}`);
+  }
+
+  const [{ contents, path }] = markers;
 
   try {
-    return JSON.parse(contents.toString('utf8'));
+    return { marker: JSON.parse(contents.toString('utf8')), path };
   } catch {
-    throw new Error(`invalid managed-theme marker: ${themeMarker}`);
+    throw new Error(`invalid managed-theme marker: ${path}`);
   }
 }
 
 async function verifyManagedTheme() {
-  const marker = await readThemeMarker();
-  if (!marker) {
+  const markerRecord = await readThemeMarker();
+  if (!markerRecord) {
     if (await exists(themeTarget)) {
       throw new Error(`refusing to replace unmanaged theme: ${themeTarget}`);
     }
     return false;
   }
+
+  const { marker, path: markerPath } = markerRecord;
 
   let expected;
   if (marker.schemaVersion === 1 && marker.theme === themeName && marker.cssSha256) {
@@ -176,7 +191,7 @@ async function verifyManagedTheme() {
   ) {
     expected = { directories: marker.directories, files: marker.files };
   } else {
-    throw new Error(`refusing invalid managed-theme marker: ${themeMarker}`);
+    throw new Error(`refusing invalid managed-theme marker: ${markerPath}`);
   }
 
   const differences = snapshotDifferences(expected, await snapshotDirectory(themeTarget, true));
