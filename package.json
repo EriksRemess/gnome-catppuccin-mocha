@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "A self-contained Catppuccin Mocha theme for GDM",
+  "description": "Maintainable Catppuccin Mocha themes for GNOME Shell, GDM, GTK 3, and GTK 4",
   "scripts": {
     "build": "node scripts/build-theme.js",
     "check": "node scripts/build-theme.js --check && node scripts/check-upstream.js",

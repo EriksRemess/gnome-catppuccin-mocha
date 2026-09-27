@@ -6,15 +6,22 @@ UPSTREAM_DIR := vendor/gnome-shell-theme
 BUILD_THEME_DIR := $(BUILD_DIR)/theme
 THEME_NAME := catppuccin-mocha
 THEME_RESOURCE := $(BUILD_DIR)/$(THEME_NAME).gresource
+USER_THEME_CSS := $(BUILD_DIR)/user-theme/$(THEME_NAME)/gnome-shell/gnome-shell.css
+GTK3_CSS := $(BUILD_DIR)/desktop/gtk-3.0/gtk.css
+GTK4_CSS := $(BUILD_DIR)/desktop/gtk-4.0/gtk.css
 MANIFEST := $(THEME_DIR)/gnome-shell-theme.gresource.xml
-COMPILED_CSS := \
+RESOURCE_CSS := \
 	$(BUILD_THEME_DIR)/gdm.css \
 	$(BUILD_THEME_DIR)/gnome-shell-dark.css \
 	$(BUILD_THEME_DIR)/gnome-shell-high-contrast.css \
 	$(BUILD_THEME_DIR)/gnome-shell-light.css
+GENERATED_CSS := $(RESOURCE_CSS) $(USER_THEME_CSS) $(GTK3_CSS) $(GTK4_CSS)
 SCSS_SOURCES := \
+	$(THEME_DIR)/scss/_mocha.scss \
 	$(THEME_DIR)/scss/_catppuccin.scss \
-	$(THEME_DIR)/scss/gdm.scss \
+	$(THEME_DIR)/scss/gnome-shell.scss \
+	$(THEME_DIR)/scss/gtk-3.0.scss \
+	$(THEME_DIR)/scss/gtk-4.0.scss \
 	$(shell find $(UPSTREAM_DIR) -type f -name '*.scss' -print)
 STATIC_THEME_SOURCES := \
 	$(UPSTREAM_DIR)/calendar-today-light.svg \
@@ -22,10 +29,9 @@ STATIC_THEME_SOURCES := \
 	$(UPSTREAM_DIR)/gnome-shell-start.svg \
 	$(UPSTREAM_DIR)/pad-osd.css \
 	$(UPSTREAM_DIR)/workspace-placeholder.svg
-RESOURCE_SOURCES := $(COMPILED_CSS) $(STATIC_THEME_SOURCES)
+RESOURCE_SOURCES := $(RESOURCE_CSS) $(STATIC_THEME_SOURCES)
 
 NODE ?= node
-UPSTREAM_REF ?= 50.1
 
 PREFIX ?= /usr/local
 INSTALL_DIR ?= $(PREFIX)/share/gnome-shell
@@ -35,11 +41,11 @@ ALTERNATIVE_NAME ?= gdm-theme.gresource
 ALTERNATIVE_PRIORITY ?= 50
 LEGACY_ALTERNATIVE_NAME := gdm3-theme.gresource
 
-.PHONY: all check update-upstream install uninstall clean help
+.PHONY: all check update-upstream install-user uninstall-user install uninstall clean help
 
-all: $(THEME_RESOURCE)
+all: $(THEME_RESOURCE) $(USER_THEME_CSS) $(GTK3_CSS) $(GTK4_CSS)
 
-$(COMPILED_CSS) &: $(SCSS_SOURCES) scripts/build-theme.js package.json package-lock.json upstream.json
+$(GENERATED_CSS) &: $(SCSS_SOURCES) scripts/build-theme.js package.json package-lock.json upstream.json
 	@command -v "$(NODE)" >/dev/null || { echo "error: Node.js is required" >&2; exit 1; }
 	@test -d node_modules/sass || { echo "error: dependencies are missing; run: npm ci" >&2; exit 1; }
 	@$(NODE) scripts/build-theme.js
@@ -55,8 +61,13 @@ $(THEME_RESOURCE): $(MANIFEST) $(RESOURCE_SOURCES) Makefile
 	trap - EXIT HUP INT TERM
 	@echo "Built $(THEME_RESOURCE)"
 
-check: $(THEME_RESOURCE)
+check: $(THEME_RESOURCE) $(USER_THEME_CSS) $(GTK3_CSS) $(GTK4_CSS)
 	@npm run check
+	@cmp -s "$(BUILD_THEME_DIR)/gdm.css" "$(USER_THEME_CSS)" || { echo "error: GDM and user Shell stylesheets differ" >&2; exit 1; }
+	@grep -Fq 'Managed by gdm-catppuccin-mocha' "$(GTK3_CSS)" || { echo "error: GTK 3 override is missing its managed marker" >&2; exit 1; }
+	@grep -Fq 'Managed by gdm-catppuccin-mocha' "$(GTK4_CSS)" || { echo "error: GTK 4 override is missing its managed marker" >&2; exit 1; }
+	@grep -Fq '#313244' "$(GTK3_CSS)" && grep -Fq '#cdd6f4' "$(GTK3_CSS)" || { echo "error: GTK 3 override is missing Catppuccin colors" >&2; exit 1; }
+	@grep -Fq '#1e1e2e' "$(GTK4_CSS)" && grep -Fq '#89b4fa' "$(GTK4_CSS)" || { echo "error: GTK 4 override is missing Catppuccin colors" >&2; exit 1; }
 	@set -eu; \
 	extracted=$$(mktemp); \
 	trap 'rm -f "$$extracted"' EXIT HUP INT TERM; \
@@ -73,7 +84,7 @@ check: $(THEME_RESOURCE)
 		cmp -s "$$source" "$$extracted" || { echo "error: compiled $$relative differs from its source" >&2; exit 1; }; \
 	done; \
 	css="$(BUILD_THEME_DIR)/gdm.css"; \
-	grep -Fq 'Catppuccin Mocha GDM theme' "$$css" || { echo "error: gdm.css is missing the theme marker" >&2; exit 1; }; \
+	grep -Fq 'Catppuccin Mocha GNOME Shell theme' "$$css" || { echo "error: gdm.css is missing the theme marker" >&2; exit 1; }; \
 	grep -Fq '#1e1e2e' "$$css" || { echo "error: gdm.css is missing the Mocha base color" >&2; exit 1; }; \
 	grep -Fq '#cba6f7' "$$css" || { echo "error: gdm.css is missing the Mocha mauve accent" >&2; exit 1; }; \
 	grep -Fq '#cdd6f4' "$$css" || { echo "error: gdm.css is missing the Mocha text color" >&2; exit 1; }; \
@@ -84,7 +95,13 @@ check: $(THEME_RESOURCE)
 	@echo "Validated $(THEME_RESOURCE)"
 
 update-upstream:
-	@npm run upstream:update -- --ref "$(UPSTREAM_REF)"
+	@npm run upstream:update $(if $(strip $(UPSTREAM_REF)),-- --ref "$(UPSTREAM_REF)")
+
+install-user: check
+	@$(NODE) scripts/manage-user-theme.js install $(if $(strip $(USER_INSTALL_HOME)),--home "$(USER_INSTALL_HOME)")
+
+uninstall-user:
+	@$(NODE) scripts/manage-user-theme.js uninstall $(if $(strip $(USER_INSTALL_HOME)),--home "$(USER_INSTALL_HOME)")
 
 install:
 	@if ! $(MAKE) --no-print-directory -q all; then \
@@ -141,9 +158,11 @@ clean:
 help:
 	@printf '%s\n' \
 		'npm ci          Install the pinned Sass compiler dependency' \
-		'make update-upstream UPSTREAM_REF=VERSION  Refresh the pinned GNOME source' \
+		'make update-upstream [UPSTREAM_REF=VERSION]  Refresh the pinned GNOME source' \
 		'make            Compile SCSS and the self-contained theme resource' \
 		'make check      Verify generated CSS and the theme resource' \
+		'make install-user    Install the Shell theme and GTK overrides for this user' \
+		'make uninstall-user  Remove project-managed user theme files' \
 		'sudo make install    Install and select the GDM theme' \
 		'sudo make uninstall  Remove it and return to the remaining alternative' \
 		'make clean      Remove generated files'

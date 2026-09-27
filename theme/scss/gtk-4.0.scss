@@ -1,0 +1,93 @@
+@import "mocha";
+
+/* Catppuccin Mocha semantic overrides for GTK 4 and libadwaita. */
+/* Managed by gdm-catppuccin-mocha. */
+@define-color accent_bg_color #{$blue};
+@define-color destructive_bg_color #{$red};
+@define-color success_bg_color #{$green};
+@define-color warning_bg_color #{$peach};
+@define-color error_bg_color #{$red};
+@define-color accent_fg_color #{$crust};
+@define-color destructive_fg_color #{$crust};
+@define-color success_fg_color #{$crust};
+@define-color warning_fg_color #{$crust};
+@define-color error_fg_color #{$crust};
+
+@define-color accent_color oklab(from @accent_bg_color max(l, 0.85) a b);
+@define-color destructive_color oklab(from @destructive_bg_color max(l, 0.85) a b);
+@define-color success_color oklab(from @success_bg_color max(l, 0.85) a b);
+@define-color warning_color oklab(from @warning_bg_color max(l, 0.85) a b);
+@define-color error_color oklab(from @error_bg_color max(l, 0.85) a b);
+
+@define-color window_bg_color #{$base};
+@define-color window_fg_color #{$text};
+@define-color view_bg_color #{$mantle};
+@define-color view_fg_color #{$text};
+
+@define-color headerbar_bg_color #{$surface0};
+@define-color headerbar_fg_color #{$text};
+@define-color headerbar_border_color #{$surface2};
+@define-color headerbar_shade_color rgba(#{red($crust)}, #{green($crust)}, #{blue($crust)}, 0.36);
+@define-color headerbar_darker_shade_color rgba(#{red($crust)}, #{green($crust)}, #{blue($crust)}, 0.9);
+
+@define-color sidebar_bg_color #{$surface0};
+@define-color sidebar_fg_color #{$text};
+@define-color sidebar_backdrop_color #{$mantle};
+@define-color sidebar_shade_color rgba(#{red($crust)}, #{green($crust)}, #{blue($crust)}, 0.25);
+@define-color sidebar_border_color rgba(#{red($crust)}, #{green($crust)}, #{blue($crust)}, 0.36);
+
+@define-color secondary_sidebar_bg_color #{$mantle};
+@define-color secondary_sidebar_fg_color #{$text};
+@define-color secondary_sidebar_backdrop_color #{$crust};
+@define-color secondary_sidebar_shade_color rgba(#{red($crust)}, #{green($crust)}, #{blue($crust)}, 0.25);
+@define-color secondary_sidebar_border_color rgba(#{red($crust)}, #{green($crust)}, #{blue($crust)}, 0.36);
+
+@define-color card_bg_color #{$surface0};
+@define-color card_fg_color #{$text};
+@define-color card_shade_color rgba(#{red($crust)}, #{green($crust)}, #{blue($crust)}, 0.36);
+@define-color dialog_bg_color #{$surface1};
+@define-color dialog_fg_color #{$text};
+@define-color popover_bg_color #{$surface1};
+@define-color popover_fg_color #{$text};
+@define-color popover_shade_color rgba(#{red($crust)}, #{green($crust)}, #{blue($crust)}, 0.25);
+@define-color thumbnail_bg_color #{$surface2};
+@define-color thumbnail_fg_color #{$text};
+@define-color shade_color rgba(#{red($crust)}, #{green($crust)}, #{blue($crust)}, 0.25);
+@define-color scrollbar_outline_color rgba(#{red($crust)}, #{green($crust)}, #{blue($crust)}, 0.95);
+
+button.suggested-action {
+  background-color: $blue;
+  color: $crust;
+}
+
+button.suggested-action:hover {
+  background-color: #9ec1fb;
+  color: $crust;
+}
+
+button.suggested-action:active {
+  background-color: #74a7f8;
+  color: $crust;
+}
+
+button.destructive-action {
+  background-color: $red;
+  color: $crust;
+}
+
+button.destructive-action:hover {
+  background-color: #f59eb5;
+  color: $crust;
+}
+
+button.destructive-action:active {
+  background-color: #ea7898;
+  color: $crust;
+}
+
+.card,
+.boxed-list,
+list.boxed-list {
+  background-color: $surface0;
+  color: $text;
+}

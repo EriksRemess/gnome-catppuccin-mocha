@@ -89,12 +89,23 @@ function topLevelRules(css) {
 }
 
 const customCss = await readFile(join(projectRoot, 'build/theme/gdm.css'), 'utf8');
+const userThemeCss = await readFile(
+  join(projectRoot, 'build/user-theme/catppuccin-mocha/gnome-shell/gnome-shell.css'),
+  'utf8',
+);
 const stockCss = await readFile(join(projectRoot, 'build/theme/gnome-shell-dark.css'), 'utf8');
 const customRules = topLevelRules(customCss);
 const stockRules = topLevelRules(stockCss);
 
+if (customCss !== userThemeCss) {
+  throw new Error('GDM and user Shell stylesheets were not generated from identical source');
+}
+
 if (JSON.stringify(customRules) !== JSON.stringify(stockRules)) {
-  const mismatch = customRules.findIndex((rule, index) => rule !== stockRules[index]);
+  const firstDifferentRule = customRules.findIndex((rule, index) => rule !== stockRules[index]);
+  const mismatch = firstDifferentRule === -1
+    ? Math.min(customRules.length, stockRules.length)
+    : firstDifferentRule;
   throw new Error(
     `Catppuccin and upstream selector structure differ at rule ${mismatch + 1}:\n` +
     `  Catppuccin: ${customRules[mismatch] ?? '<missing>'}\n` +

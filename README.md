@@ -1,11 +1,11 @@
-# Catppuccin Mocha for GDM
+# Catppuccin Mocha for GNOME and GDM
 
-A self-contained Catppuccin Mocha theme for the GNOME Display Manager. The
-project follows GNOME Shell's default theme instead of maintaining a detached
-copy of its generated CSS.
+A maintainable Catppuccin Mocha recoloring of GNOME Shell 50.1, GDM, GTK 3,
+and GTK 4/libadwaita. GNOME Shell and GDM are compiled from the same pinned
+upstream source and share one Catppuccin palette with the GTK overrides.
 
-The current snapshot is GNOME Shell 50.1 and has been built and checked against
-GNOME Shell 50.1 on Ubuntu 26.04.
+The current snapshot has been built and checked against GNOME Shell 50.1 on
+Ubuntu 26.04.
 
 ## How the source is organized
 
@@ -13,15 +13,17 @@ GNOME Shell 50.1 on Ubuntu 26.04.
   `data/theme` directory.
 - `upstream.json` records the requested ref, resolved commit, archive checksum,
   and checksum of every vendored file.
-- `theme/scss/gdm.scss` imports GNOME's complete theme and inserts the
+- `theme/scss/_mocha.scss` is the shared Catppuccin Mocha palette.
+- `theme/scss/_catppuccin.scss` maps that palette onto GNOME Shell's semantic
+  theme variables.
+- `theme/scss/gnome-shell.scss` imports GNOME's complete theme and inserts the
   Catppuccin overlay before GNOME's drawing and widget partials.
-- `theme/scss/_catppuccin.scss` is the maintained color overlay. It is the
-  normal place to change the theme.
-- `scripts/build-theme.js` compiles the Catppuccin GDM stylesheet and all stock
-  stylesheets used by the resource.
+- `theme/scss/gtk-3.0.scss` and `gtk-4.0.scss` contain the user-level GTK
+  overrides.
+- `scripts/build-theme.js` compiles every generated stylesheet.
 
-This means new GNOME selectors and component changes are inherited on an
-upstream refresh. The custom source remains small enough to review directly.
+New GNOME selectors and component changes are inherited when the snapshot is
+refreshed. The custom source remains small enough to review directly.
 
 ## Build and verify
 
@@ -33,20 +35,99 @@ npm ci
 make check
 ```
 
-Normal builds do not use the network. `make check` verifies that:
+Normal builds do not use the network. They produce:
 
-- the vendored source exactly matches `upstream.json`;
-- generated CSS is current;
-- Catppuccin and stock GNOME dark CSS have the same selector structure;
-- old GNOME palette colors did not leak into the custom stylesheet; and
-- every file in the compiled resource matches its source.
+- `build/catppuccin-mocha.gresource` for GDM;
+- `build/user-theme/catppuccin-mocha/gnome-shell/gnome-shell.css` for the User
+  Themes extension; and
+- `build/desktop/gtk-{3,4}.0/gtk.css` for application overrides.
 
-Generated files are written below `build/` and are not committed.
+`make check` verifies the vendored source hashes, generated output, identical
+GDM/user-theme CSS, the complete upstream selector sequence, recolored GNOME
+values, and every file within the GDM resource.
+
+## Install the desktop theme
+
+Install GNOME Shell and both GTK overrides for the current user:
+
+```sh
+make install-user
+```
+
+This installs only user-owned files:
+
+```text
+~/.local/share/themes/catppuccin-mocha/gnome-shell/gnome-shell.css
+~/.config/gtk-3.0/gtk.css
+~/.config/gtk-4.0/gtk.css
+```
+
+Installation runs the complete validation suite first. The installer refuses
+to replace unmanaged files. Managed installations carry a manifest covering
+every directory and file, so an update or uninstall also refuses to overwrite
+changes made after installation. Shell and GTK changes are committed as one
+transaction and rolled back together if an installation step fails.
+
+Select `catppuccin-mocha` in the User Themes extension. The GTK overrides are
+loaded by newly started applications. For a consistently dark GTK 3 base,
+select GNOME's dark appearance or run:
+
+```sh
+gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita-dark'
+gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+```
+
+Log out and back in to ensure every Shell and application process reloads its
+theme.
+
+To remove only files managed by this project:
+
+```sh
+make uninstall-user
+```
+
+Then select `Default` in the User Themes extension and reset GNOME's appearance
+settings if desired:
+
+```sh
+gsettings reset org.gnome.desktop.interface gtk-theme
+gsettings reset org.gnome.desktop.interface color-scheme
+```
+
+## Install the GDM theme
+
+Ubuntu exposes GDM's Shell theme through the `gdm-theme.gresource`
+`update-alternatives` group. Build as your normal user, then install the
+already-built resource as root:
+
+```sh
+make check
+sudo make install
+```
+
+The installer copies the resource to
+`/usr/local/share/gnome-shell/catppuccin-mocha.gresource`, registers it with
+`update-alternatives`, and selects it. It does not restart GDM because that
+would terminate graphical sessions. Save your work and reboot to see it.
+
+Remove the GDM theme with:
+
+```sh
+sudo make uninstall
+```
+
+For packaging or installer testing, `DESTDIR` stages the GDM resource without
+calling `update-alternatives`:
+
+```sh
+make install DESTDIR=/tmp/gdm-catppuccin-stage
+make uninstall DESTDIR=/tmp/gdm-catppuccin-stage
+```
 
 ## Refresh the GNOME source
 
-Choose a GNOME Shell release compatible with the system where GDM will use the
-theme. Do not update blindly to GNOME's development branch.
+Choose a GNOME Shell release compatible with the target system. Do not update
+blindly to GNOME's development branch.
 
 ```sh
 gnome-shell --version
@@ -59,60 +140,13 @@ make check
 The updater resolves the ref through GNOME's read-only GitHub mirror, downloads
 that commit, and replaces only the vendored `data/theme` snapshot. It refuses
 to overwrite local edits within the existing snapshot. Review the upstream
-diff before accepting it; `make check` then exposes missing selectors and
-unmapped colors that require changes to `_catppuccin.scss`.
-
-## Palette
-
-The overlay uses the official Catppuccin Mocha palette. Its main colors are:
-
-- Base `#1e1e2e` for the login background
-- Surface colors `#313244`, `#45475a`, and `#585b70` for controls
-- Text `#cdd6f4` and the Mocha subtext colors for labels
-- Mauve `#cba6f7` for focus and selection
-- Red, peach, and yellow for destructive and warning states
-
-## Install
-
-Ubuntu exposes GDM's Shell theme through the `gdm-theme.gresource`
-`update-alternatives` group. Build as your normal user, then install the
-already-built resource as root:
-
-```sh
-make check
-sudo make install
-```
-
-Installation copies the resource to
-`/usr/local/share/gnome-shell/catppuccin-mocha.gresource`, registers it with
-`update-alternatives`, and selects it. The installer does not restart GDM
-because that would terminate graphical sessions. Save your work and reboot to
-see the result.
-
-After updating GNOME Shell, refresh this repository to the matching release,
-rebuild, review the checks, and reinstall the generated resource.
-
-## Uninstall
-
-```sh
-sudo make uninstall
-```
-
-This unregisters and removes the custom resource. `update-alternatives` then
-selects the remaining default resource. Reboot after saving your work.
-
-For packaging or installer testing, `DESTDIR` stages the resource without
-calling `update-alternatives`:
-
-```sh
-make install DESTDIR=/tmp/gdm-catppuccin-stage
-make uninstall DESTDIR=/tmp/gdm-catppuccin-stage
-```
+diff before accepting it; the checks expose missing selectors and unmapped
+colors that require changes to `_catppuccin.scss`.
 
 ## Licensing
 
-The theme is derived from GNOME Shell's default theme. Original copyright and
-license notices are preserved in the vendored source. The relevant Debian
+The Shell theme is derived from GNOME Shell's default theme. Original copyright
+and license notices are preserved in the vendored source. The relevant Debian
 package copyright record is included as `COPYING.GNOME`, and the LGPL 2.1 text
-as `COPYING.LGPL-2.1`. `gnome-shell-start.svg` contains its original Creative
+as `COPYING.LGPL-2.1`. `gnome-shell-start.svg` retains its original Creative
 Commons Attribution-ShareAlike 4.0 license metadata.

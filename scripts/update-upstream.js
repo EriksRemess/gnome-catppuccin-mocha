@@ -25,7 +25,7 @@ const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const vendorDirectory = join(projectRoot, 'vendor/gnome-shell-theme');
 const metadataPath = join(projectRoot, 'upstream.json');
 const arguments_ = process.argv.slice(2);
-let ref = '50.1';
+let ref;
 
 for (let index = 0; index < arguments_.length; index += 1) {
   if (arguments_[index] !== '--ref') {
@@ -38,6 +38,14 @@ for (let index = 0; index < arguments_.length; index += 1) {
 
   ref = arguments_[index + 1];
   index += 1;
+}
+
+if (!ref) {
+  const metadata = JSON.parse(await readFile(metadataPath, 'utf8'));
+  if (typeof metadata.ref !== 'string' || metadata.ref.length === 0) {
+    throw new Error('upstream.json does not contain a valid ref');
+  }
+  ref = metadata.ref;
 }
 
 async function fetchChecked(url, accept) {
