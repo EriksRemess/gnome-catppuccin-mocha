@@ -101,15 +101,34 @@ if (customCss !== userThemeCss) {
   throw new Error('GDM and user Shell stylesheets were not generated from identical source');
 }
 
-if (JSON.stringify(customRules) !== JSON.stringify(stockRules)) {
-  const firstDifferentRule = customRules.findIndex((rule, index) => rule !== stockRules[index]);
+const inheritedRules = customRules.slice(0, stockRules.length);
+if (JSON.stringify(inheritedRules) !== JSON.stringify(stockRules)) {
+  const firstDifferentRule = inheritedRules.findIndex((rule, index) => rule !== stockRules[index]);
   const mismatch = firstDifferentRule === -1
-    ? Math.min(customRules.length, stockRules.length)
+    ? Math.min(inheritedRules.length, stockRules.length)
     : firstDifferentRule;
   throw new Error(
     `Catppuccin and upstream selector structure differ at rule ${mismatch + 1}:\n` +
-    `  Catppuccin: ${customRules[mismatch] ?? '<missing>'}\n` +
+    `  Catppuccin: ${inheritedRules[mismatch] ?? '<missing>'}\n` +
     `  upstream:   ${stockRules[mismatch] ?? '<missing>'}`,
+  );
+}
+
+const overrideRules = customRules.slice(stockRules.length);
+const requiredOverrideRules = [
+  '.unlock-dialog .login-dialog-prompt-entry',
+  '.unlock-dialog .login-dialog-prompt-entry:hover',
+  '.unlock-dialog .login-dialog-prompt-entry:focus',
+  '.unlock-dialog .login-dialog-prompt-entry:insensitive',
+  '.unlock-dialog .login-dialog-prompt-entry StLabel.hint-text',
+  '.unlock-dialog .user-widget .user-widget-label',
+  '.unlock-dialog .user-widget .user-icon',
+  '.unlock-dialog .login-dialog-message-warning',
+];
+const missingOverrideRules = requiredOverrideRules.filter(rule => !overrideRules.includes(rule));
+if (missingOverrideRules.length > 0) {
+  throw new Error(
+    `Catppuccin lock-screen overrides are missing selectors: ${missingOverrideRules.join(', ')}`,
   );
 }
 
@@ -144,5 +163,5 @@ for (const color of ['#1e1e2e', '#cba6f7', '#cdd6f4']) {
 
 console.log(
   `Validated GNOME Shell ${metadata.ref} source at ${metadata.commit.slice(0, 12)} ` +
-  `and ${customRules.length} CSS rules`,
+  `with ${stockRules.length} upstream and ${overrideRules.length} project CSS rules`,
 );

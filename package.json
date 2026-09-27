@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Maintainable Catppuccin Mocha themes for GNOME Shell, GDM, GTK 3, and GTK 4",
+  "description": "Maintainable Catppuccin Mocha themes for GNOME Shell, its lock screen, GDM, GTK 3, and GTK 4",
   "scripts": {
     "build": "node scripts/build-theme.js",
-    "check": "node scripts/build-theme.js --check && node scripts/check-upstream.js",
+    "check": "node scripts/build-theme.js --check && node scripts/check-upstream.js && node --check extension/extension.js && node scripts/check-extension.js",
     "upstream:check": "node scripts/check-upstream.js",
     "upstream:update": "node scripts/update-upstream.js",
     "test": "make check"

@@ -19,6 +19,7 @@ GENERATED_CSS := $(RESOURCE_CSS) $(USER_THEME_CSS) $(GTK3_CSS) $(GTK4_CSS)
 SCSS_SOURCES := \
 	$(THEME_DIR)/scss/_mocha.scss \
 	$(THEME_DIR)/scss/_catppuccin.scss \
+	$(THEME_DIR)/scss/_lock-screen.scss \
 	$(THEME_DIR)/scss/gnome-shell.scss \
 	$(THEME_DIR)/scss/gtk-3.0.scss \
 	$(THEME_DIR)/scss/gtk-4.0.scss \
@@ -41,7 +42,7 @@ ALTERNATIVE_NAME ?= gdm-theme.gresource
 ALTERNATIVE_PRIORITY ?= 50
 LEGACY_ALTERNATIVE_NAME := gdm3-theme.gresource
 
-.PHONY: all check update-upstream install-user uninstall-user install uninstall clean help
+.PHONY: all check update-upstream install-user uninstall-user enable-user-theme disable-user-theme install uninstall clean help
 
 all: $(THEME_RESOURCE) $(USER_THEME_CSS) $(GTK3_CSS) $(GTK4_CSS)
 
@@ -99,9 +100,31 @@ update-upstream:
 
 install-user: check
 	@$(NODE) scripts/manage-user-theme.js install $(if $(strip $(USER_INSTALL_HOME)),--home "$(USER_INSTALL_HOME)")
+	@if test -z "$(USER_INSTALL_HOME)"; then \
+		command -v gjs >/dev/null || { echo "error: gjs is required to enable the Shell extension" >&2; exit 1; }; \
+		gjs -m scripts/configure-extension.js enable; \
+	fi
 
 uninstall-user:
-	@$(NODE) scripts/manage-user-theme.js uninstall $(if $(strip $(USER_INSTALL_HOME)),--home "$(USER_INSTALL_HOME)")
+	@if test -n "$(USER_INSTALL_HOME)"; then \
+		$(NODE) scripts/manage-user-theme.js uninstall --home "$(USER_INSTALL_HOME)"; \
+	else \
+		command -v gjs >/dev/null || { echo "error: gjs is required to disable the Shell extension" >&2; exit 1; }; \
+		gjs -m scripts/configure-extension.js disable; \
+		if ! $(NODE) scripts/manage-user-theme.js uninstall; then \
+			gjs -m scripts/configure-extension.js enable || \
+				echo "warning: failed to re-enable the extension after uninstall rollback" >&2; \
+			exit 1; \
+		fi; \
+	fi
+
+enable-user-theme:
+	@command -v gjs >/dev/null || { echo "error: gjs is required to enable the Shell extension" >&2; exit 1; }
+	@gjs -m scripts/configure-extension.js enable
+
+disable-user-theme:
+	@command -v gjs >/dev/null || { echo "error: gjs is required to disable the Shell extension" >&2; exit 1; }
+	@gjs -m scripts/configure-extension.js disable
 
 install:
 	@if ! $(MAKE) --no-print-directory -q all; then \
@@ -161,8 +184,10 @@ help:
 		'make update-upstream [UPSTREAM_REF=VERSION]  Refresh the pinned GNOME source' \
 		'make            Compile SCSS and the self-contained theme resource' \
 		'make check      Verify generated CSS and the theme resource' \
-		'make install-user    Install the Shell theme and GTK overrides for this user' \
+		'make install-user    Install and enable the Shell/lock-screen theme and GTK overrides' \
 		'make uninstall-user  Remove project-managed user theme files' \
+		'make enable-user-theme   Enable the installed Shell/lock-screen extension' \
+		'make disable-user-theme  Disable the Shell/lock-screen extension' \
 		'sudo make install    Install and select the GDM theme' \
 		'sudo make uninstall  Remove it and return to the remaining alternative' \
 		'make clean      Remove generated files'

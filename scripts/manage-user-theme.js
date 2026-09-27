@@ -16,9 +16,11 @@ import { fileURLToPath } from 'node:url';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const themeName = 'catppuccin-mocha';
+const extensionUuid = 'catppuccin-mocha@gnome-catppuccin-mocha';
 const markerName = '.gnome-catppuccin-mocha-managed.json';
 const legacyMarkerNames = ['.gdm-catppuccin-mocha-managed.json'];
 const markerNames = new Set([markerName, ...legacyMarkerNames]);
+const extensionMarkerNames = new Set([markerName]);
 const arguments_ = process.argv.slice(2);
 const action = arguments_.shift();
 let stagedHome;
@@ -51,6 +53,9 @@ const themeTarget = join(themeRoot, themeName);
 const themeSource = join(projectRoot, 'build/user-theme', themeName);
 const themeCssRelativePath = 'gnome-shell/gnome-shell.css';
 const themeCssTarget = join(themeTarget, themeCssRelativePath);
+const extensionRoot = join(dataHome, 'gnome-shell/extensions');
+const extensionTarget = join(extensionRoot, extensionUuid);
+const extensionSource = join(projectRoot, 'extension');
 const legacyTheme = join(userHome, '.themes', themeName);
 const gtkFiles = [
   {
@@ -67,6 +72,9 @@ const gtkFiles = [
 
 if (basename(themeTarget) !== themeName || dirname(themeTarget) !== themeRoot) {
   throw new Error(`refusing unsafe theme target: ${themeTarget}`);
+}
+if (basename(extensionTarget) !== extensionUuid || dirname(extensionTarget) !== extensionRoot) {
+  throw new Error(`refusing unsafe extension target: ${extensionTarget}`);
 }
 
 function sha256(contents) {
@@ -142,18 +150,18 @@ function snapshotDifferences(expected, actual) {
   return differences;
 }
 
-async function readThemeMarker() {
+async function readManagedMarker(directory, acceptedMarkerNames) {
   const markers = [];
 
-  for (const name of markerNames) {
-    const path = join(themeTarget, name);
+  for (const name of acceptedMarkerNames) {
+    const path = join(directory, name);
     const contents = await readOptional(path);
     if (contents) markers.push({ contents, path });
   }
 
   if (markers.length === 0) return null;
   if (markers.length > 1) {
-    throw new Error(`refusing theme with multiple ownership markers: ${themeTarget}`);
+    throw new Error(`refusing directory with multiple ownership markers: ${directory}`);
   }
 
   const [{ contents, path }] = markers;
@@ -166,7 +174,7 @@ async function readThemeMarker() {
 }
 
 async function verifyManagedTheme() {
-  const markerRecord = await readThemeMarker();
+  const markerRecord = await readManagedMarker(themeTarget, markerNames);
   if (!markerRecord) {
     if (await exists(themeTarget)) {
       throw new Error(`refusing to replace unmanaged theme: ${themeTarget}`);
@@ -198,6 +206,40 @@ async function verifyManagedTheme() {
   if (differences.length > 0) {
     throw new Error(
       `refusing to replace a modified managed theme:\n${differences.map(line => `  ${line}`).join('\n')}`,
+    );
+  }
+
+  return true;
+}
+
+async function verifyManagedExtension() {
+  const markerRecord = await readManagedMarker(extensionTarget, extensionMarkerNames);
+  if (!markerRecord) {
+    if (await exists(extensionTarget)) {
+      throw new Error(`refusing to replace unmanaged extension: ${extensionTarget}`);
+    }
+    return false;
+  }
+
+  const { marker, path: markerPath } = markerRecord;
+  if (
+    marker.schemaVersion !== 2 ||
+    marker.extension !== extensionUuid ||
+    !Array.isArray(marker.directories) ||
+    !marker.files ||
+    typeof marker.files !== 'object'
+  ) {
+    throw new Error(`refusing invalid managed-extension marker: ${markerPath}`);
+  }
+
+  const expected = { directories: marker.directories, files: marker.files };
+  const differences = snapshotDifferences(
+    expected,
+    await snapshotDirectory(extensionTarget, true),
+  );
+  if (differences.length > 0) {
+    throw new Error(
+      `refusing to replace a modified managed extension:\n${differences.map(line => `  ${line}`).join('\n')}`,
     );
   }
 
@@ -237,14 +279,17 @@ async function install() {
     );
   }
 
-  const sourceSnapshot = await snapshotDirectory(themeSource);
+  const themeSourceSnapshot = await snapshotDirectory(themeSource);
+  const extensionSourceSnapshot = await snapshotDirectory(extensionSource);
   const sourceGtk = await Promise.all(gtkFiles.map(async file => ({
     ...file,
     contents: await readFile(file.source),
   })));
   const hadManagedTheme = await verifyManagedTheme();
+  const hadManagedExtension = await verifyManagedExtension();
   const gtkInspection = await Promise.all(gtkFiles.map(inspectManagedGtk));
   const themePaths = transactionPaths(themeTarget, 'install');
+  const extensionPaths = transactionPaths(extensionTarget, 'install');
   const gtkState = sourceGtk.map((file, index) => ({
     ...file,
     ...gtkInspection[index],
@@ -257,8 +302,11 @@ async function install() {
   }));
   let themeBackedUp = false;
   let themeInstalled = false;
+  let extensionBackedUp = false;
+  let extensionInstalled = false;
 
   await mkdir(themeRoot, { recursive: true });
+  await mkdir(extensionRoot, { recursive: true });
 
   try {
     await cp(themeSource, themePaths.staged, { recursive: true, errorOnExist: true });
@@ -267,8 +315,19 @@ async function install() {
       `${JSON.stringify({
         schemaVersion: 2,
         theme: themeName,
-        directories: sourceSnapshot.directories,
-        files: sourceSnapshot.files,
+        directories: themeSourceSnapshot.directories,
+        files: themeSourceSnapshot.files,
+      }, null, 2)}\n`,
+      'utf8',
+    );
+    await cp(extensionSource, extensionPaths.staged, { recursive: true, errorOnExist: true });
+    await writeFile(
+      join(extensionPaths.staged, markerName),
+      `${JSON.stringify({
+        schemaVersion: 2,
+        extension: extensionUuid,
+        directories: extensionSourceSnapshot.directories,
+        files: extensionSourceSnapshot.files,
       }, null, 2)}\n`,
       'utf8',
     );
@@ -282,6 +341,10 @@ async function install() {
     if (hadManagedTheme) {
       await rename(themeTarget, themePaths.previous);
       themeBackedUp = true;
+    }
+    if (hadManagedExtension) {
+      await rename(extensionTarget, extensionPaths.previous);
+      extensionBackedUp = true;
     }
 
     for (const state of gtkState) {
@@ -297,6 +360,8 @@ async function install() {
 
     await rename(themePaths.staged, themeTarget);
     themeInstalled = true;
+    await rename(extensionPaths.staged, extensionTarget);
+    extensionInstalled = true;
 
     for (const state of gtkState) {
       await rename(state.targetPaths.staged, state.target);
@@ -320,6 +385,12 @@ async function install() {
       if (state.markerBackedUp) await rollback(() => rename(state.markerPaths.previous, state.marker));
       if (state.targetBackedUp) await rollback(() => rename(state.targetPaths.previous, state.target));
     }
+    if (extensionInstalled) {
+      await rollback(() => rm(extensionTarget, { recursive: true, force: true }));
+    }
+    if (extensionBackedUp) {
+      await rollback(() => rename(extensionPaths.previous, extensionTarget));
+    }
     if (themeInstalled) await rollback(() => rm(themeTarget, { recursive: true, force: true }));
     if (themeBackedUp) await rollback(() => rename(themePaths.previous, themeTarget));
 
@@ -329,6 +400,7 @@ async function install() {
     throw error;
   } finally {
     await rm(themePaths.staged, { recursive: true, force: true });
+    await rm(extensionPaths.staged, { recursive: true, force: true });
     for (const state of gtkState) {
       await removeFile(state.targetPaths.staged);
       await removeFile(state.markerPaths.staged);
@@ -336,20 +408,24 @@ async function install() {
   }
 
   await rm(themePaths.previous, { recursive: true, force: true });
+  await rm(extensionPaths.previous, { recursive: true, force: true });
   for (const state of gtkState) {
     await removeFile(state.targetPaths.previous);
     await removeFile(state.markerPaths.previous);
   }
 
   console.log(`Installed GNOME Shell theme in ${themeTarget}`);
+  console.log(`Installed lock-screen theme loader in ${extensionTarget}`);
   console.log(`Installed GTK 3 and GTK 4 overrides in ${configHome}`);
-  console.log(`Select “${themeName}” in the User Themes extension, then restart affected applications.`);
+  console.log('Log out and back in to load the extension, Shell theme, and GTK changes.');
 }
 
 async function uninstall() {
   const managedTheme = await verifyManagedTheme();
+  const managedExtension = await verifyManagedExtension();
   const gtkInspection = await Promise.all(gtkFiles.map(inspectManagedGtk));
   const themeRemoval = `${themeTarget}.uninstall-${process.pid}`;
+  const extensionRemoval = `${extensionTarget}.uninstall-${process.pid}`;
   const gtkState = gtkFiles.map((file, index) => ({
     ...file,
     ...gtkInspection[index],
@@ -359,11 +435,16 @@ async function uninstall() {
     markerMoved: false,
   }));
   let themeMoved = false;
+  let extensionMoved = false;
 
   try {
     if (managedTheme) {
       await rename(themeTarget, themeRemoval);
       themeMoved = true;
+    }
+    if (managedExtension) {
+      await rename(extensionTarget, extensionRemoval);
+      extensionMoved = true;
     }
     for (const state of gtkState) {
       if (state.managed) {
@@ -386,6 +467,11 @@ async function uninstall() {
       }
     }
     try {
+      if (extensionMoved) await rename(extensionRemoval, extensionTarget);
+    } catch (rollbackError) {
+      rollbackErrors.push(rollbackError);
+    }
+    try {
       if (themeMoved) await rename(themeRemoval, themeTarget);
     } catch (rollbackError) {
       rollbackErrors.push(rollbackError);
@@ -398,13 +484,14 @@ async function uninstall() {
   }
 
   if (themeMoved) await rm(themeRemoval, { recursive: true });
+  if (extensionMoved) await rm(extensionRemoval, { recursive: true });
   for (const state of gtkState) {
     if (state.targetMoved) await removeFile(state.targetRemoval);
     if (state.markerMoved) await removeFile(state.markerRemoval);
   }
 
-  console.log(`Removed managed user theme and GTK overrides from ${userHome}`);
-  console.log('Select “Default” in the User Themes extension, then restart affected applications.');
+  console.log(`Removed managed Shell theme, lock-screen loader, and GTK overrides from ${userHome}`);
+  console.log('Log out and back in to finish returning to the default theme.');
 }
 
 if (action === 'install') await install();

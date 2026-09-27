@@ -1,0 +1,44 @@
+/* Catppuccin-specific lock-screen form treatment. */
+.unlock-dialog {
+  .login-dialog-prompt-entry {
+    color: $text;
+    background-color: $surface0;
+    box-shadow: inset 0 0 0 1px rgba($overlay0, 0.55);
+
+    &:hover {
+      color: $text;
+      background-color: $surface1;
+    }
+
+    &:focus {
+      color: $text;
+      background-color: $surface0;
+      box-shadow: inset 0 0 0 2px $mauve !important;
+    }
+
+    &:insensitive {
+      color: $overlay1;
+      background-color: $mantle;
+    }
+
+    StLabel.hint-text {
+      color: $subtext0;
+    }
+  }
+
+  .user-widget {
+    .user-widget-label {
+      color: $lavender;
+    }
+
+    .user-icon {
+      color: $mauve;
+      background-color: $surface0;
+      box-shadow: inset 0 0 0 2px rgba($mauve, 0.45);
+    }
+  }
+
+  .login-dialog-message-warning {
+    color: $red;
+  }
+}

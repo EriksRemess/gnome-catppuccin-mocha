@@ -1,0 +1,13 @@
+{
+  "uuid": "catppuccin-mocha@gnome-catppuccin-mocha",
+  "name": "Catppuccin Mocha Theme Loader",
+  "description": "Loads the Catppuccin Mocha GNOME Shell theme in the user session and on the lock screen.",
+  "shell-version": [
+    "50"
+  ],
+  "session-modes": [
+    "user",
+    "unlock-dialog"
+  ],
+  "version": 1
+}
