@@ -2,26 +2,30 @@ SHELL := /bin/sh
 
 BUILD_DIR ?= build
 THEME_DIR := theme
+UPSTREAM_DIR := vendor/gnome-shell-theme
 BUILD_THEME_DIR := $(BUILD_DIR)/theme
 THEME_NAME := catppuccin-mocha
 THEME_RESOURCE := $(BUILD_DIR)/$(THEME_NAME).gresource
 MANIFEST := $(THEME_DIR)/gnome-shell-theme.gresource.xml
-COMPILED_CSS := $(BUILD_THEME_DIR)/gdm.css
+COMPILED_CSS := \
+	$(BUILD_THEME_DIR)/gdm.css \
+	$(BUILD_THEME_DIR)/gnome-shell-dark.css \
+	$(BUILD_THEME_DIR)/gnome-shell-high-contrast.css \
+	$(BUILD_THEME_DIR)/gnome-shell-light.css
 SCSS_SOURCES := \
-	$(THEME_DIR)/scss/_palette.scss \
-	$(THEME_DIR)/scss/gdm.scss
+	$(THEME_DIR)/scss/_catppuccin.scss \
+	$(THEME_DIR)/scss/gdm.scss \
+	$(shell find $(UPSTREAM_DIR) -type f -name '*.scss' -print)
 STATIC_THEME_SOURCES := \
-	$(THEME_DIR)/calendar-today-light.svg \
-	$(THEME_DIR)/calendar-today.svg \
-	$(THEME_DIR)/gnome-shell-dark.css \
-	$(THEME_DIR)/gnome-shell-high-contrast.css \
-	$(THEME_DIR)/gnome-shell-light.css \
-	$(THEME_DIR)/gnome-shell-start.svg \
-	$(THEME_DIR)/pad-osd.css \
-	$(THEME_DIR)/workspace-placeholder.svg
+	$(UPSTREAM_DIR)/calendar-today-light.svg \
+	$(UPSTREAM_DIR)/calendar-today.svg \
+	$(UPSTREAM_DIR)/gnome-shell-start.svg \
+	$(UPSTREAM_DIR)/pad-osd.css \
+	$(UPSTREAM_DIR)/workspace-placeholder.svg
 RESOURCE_SOURCES := $(COMPILED_CSS) $(STATIC_THEME_SOURCES)
 
 NODE ?= node
+UPSTREAM_REF ?= 50.1
 
 PREFIX ?= /usr/local
 INSTALL_DIR ?= $(PREFIX)/share/gnome-shell
@@ -31,14 +35,14 @@ ALTERNATIVE_NAME ?= gdm-theme.gresource
 ALTERNATIVE_PRIORITY ?= 50
 LEGACY_ALTERNATIVE_NAME := gdm3-theme.gresource
 
-.PHONY: all check install uninstall clean help
+.PHONY: all check update-upstream install uninstall clean help
 
 all: $(THEME_RESOURCE)
 
-$(COMPILED_CSS): $(SCSS_SOURCES) scripts/build-theme.mjs package.json package-lock.json
+$(COMPILED_CSS) &: $(SCSS_SOURCES) scripts/build-theme.js package.json package-lock.json upstream.json
 	@command -v "$(NODE)" >/dev/null || { echo "error: Node.js is required" >&2; exit 1; }
 	@test -d node_modules/sass || { echo "error: dependencies are missing; run: npm ci" >&2; exit 1; }
-	@$(NODE) scripts/build-theme.mjs
+	@$(NODE) scripts/build-theme.js
 
 $(THEME_RESOURCE): $(MANIFEST) $(RESOURCE_SOURCES) Makefile
 	@command -v glib-compile-resources >/dev/null || { echo "error: glib-compile-resources is required" >&2; exit 1; }
@@ -46,13 +50,13 @@ $(THEME_RESOURCE): $(MANIFEST) $(RESOURCE_SOURCES) Makefile
 	@set -eu; \
 	resource_tmp="$(THEME_RESOURCE).tmp"; \
 	trap 'rm -f "$$resource_tmp"' EXIT HUP INT TERM; \
-	glib-compile-resources --sourcedir="$(BUILD_THEME_DIR)" --sourcedir="$(THEME_DIR)" --target="$$resource_tmp" "$(MANIFEST)"; \
+	glib-compile-resources --sourcedir="$(BUILD_THEME_DIR)" --sourcedir="$(UPSTREAM_DIR)" --target="$$resource_tmp" "$(MANIFEST)"; \
 	mv "$$resource_tmp" "$(THEME_RESOURCE)"; \
 	trap - EXIT HUP INT TERM
 	@echo "Built $(THEME_RESOURCE)"
 
 check: $(THEME_RESOURCE)
-	@$(NODE) scripts/build-theme.mjs --check
+	@npm run check
 	@set -eu; \
 	extracted=$$(mktemp); \
 	trap 'rm -f "$$extracted"' EXIT HUP INT TERM; \
@@ -62,13 +66,13 @@ check: $(THEME_RESOURCE)
 	for source do \
 		case "$$source" in \
 			$(BUILD_THEME_DIR)/*) relative=$${source#$(BUILD_THEME_DIR)/} ;; \
-			$(THEME_DIR)/*) relative=$${source#$(THEME_DIR)/} ;; \
+			$(UPSTREAM_DIR)/*) relative=$${source#$(UPSTREAM_DIR)/} ;; \
 			*) echo "error: unexpected theme source: $$source" >&2; exit 1 ;; \
 		esac; \
 		gresource extract "$(THEME_RESOURCE)" "/org/gnome/shell/theme/$$relative" > "$$extracted"; \
 		cmp -s "$$source" "$$extracted" || { echo "error: compiled $$relative differs from its source" >&2; exit 1; }; \
 	done; \
-	css="$(COMPILED_CSS)"; \
+	css="$(BUILD_THEME_DIR)/gdm.css"; \
 	grep -Fq 'Catppuccin Mocha GDM theme' "$$css" || { echo "error: gdm.css is missing the theme marker" >&2; exit 1; }; \
 	grep -Fq '#1e1e2e' "$$css" || { echo "error: gdm.css is missing the Mocha base color" >&2; exit 1; }; \
 	grep -Fq '#cba6f7' "$$css" || { echo "error: gdm.css is missing the Mocha mauve accent" >&2; exit 1; }; \
@@ -78,6 +82,9 @@ check: $(THEME_RESOURCE)
 		exit 1; \
 	fi
 	@echo "Validated $(THEME_RESOURCE)"
+
+update-upstream:
+	@npm run upstream:update -- --ref "$(UPSTREAM_REF)"
 
 install:
 	@if ! $(MAKE) --no-print-directory -q all; then \
@@ -134,6 +141,7 @@ clean:
 help:
 	@printf '%s\n' \
 		'npm ci          Install the pinned Sass compiler dependency' \
+		'make update-upstream UPSTREAM_REF=VERSION  Refresh the pinned GNOME source' \
 		'make            Compile SCSS and the self-contained theme resource' \
 		'make check      Verify generated CSS and the theme resource' \
 		'sudo make install    Install and select the GDM theme' \

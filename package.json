@@ -5,8 +5,10 @@
   "type": "module",
   "description": "A self-contained Catppuccin Mocha theme for GDM",
   "scripts": {
-    "build": "node scripts/build-theme.mjs",
-    "check": "node scripts/build-theme.mjs --check",
+    "build": "node scripts/build-theme.js",
+    "check": "node scripts/build-theme.js --check && node scripts/check-upstream.js",
+    "upstream:check": "node scripts/check-upstream.js",
+    "upstream:update": "node scripts/update-upstream.js",
     "test": "make check"
   },
   "engines": {
