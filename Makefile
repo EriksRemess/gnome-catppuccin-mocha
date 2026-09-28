@@ -20,6 +20,7 @@ SCSS_SOURCES := \
 	$(THEME_DIR)/scss/_mocha.scss \
 	$(THEME_DIR)/scss/_catppuccin.scss \
 	$(THEME_DIR)/scss/_lock-screen.scss \
+	$(THEME_DIR)/scss/_shell-overrides.scss \
 	$(THEME_DIR)/scss/gnome-shell.scss \
 	$(THEME_DIR)/scss/gtk-3.0.scss \
 	$(THEME_DIR)/scss/gtk-4.0.scss \

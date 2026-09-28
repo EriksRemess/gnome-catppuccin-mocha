@@ -20,6 +20,8 @@ Ubuntu 26.04.
 - `theme/scss/_lock-screen.scss` gives the unlock prompt explicit Mocha
   surfaces and focus colors instead of GNOME's nearly neutral translucent
   defaults.
+- `theme/scss/_shell-overrides.scss` contains small desktop integration fixes,
+  including the fractional-scale seam below the top panel.
 - `theme/scss/gnome-shell.scss` imports GNOME's complete theme and inserts the
   Catppuccin palette before GNOME's drawing and widget partials, then applies
   the small lock-screen override.

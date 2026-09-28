@@ -124,6 +124,8 @@ const requiredOverrideRules = [
   '.unlock-dialog .user-widget .user-widget-label',
   '.unlock-dialog .user-widget .user-icon',
   '.unlock-dialog .login-dialog-message-warning',
+  '#panel',
+  '#panel:overview, #panel.unlock-screen, #panel.login-screen',
 ];
 const missingOverrideRules = requiredOverrideRules.filter(rule => !overrideRules.includes(rule));
 if (missingOverrideRules.length > 0) {

@@ -1,0 +1,11 @@
+/* Cover fractional-scale rounding between the panel and maximized windows
+ * without changing the panel allocation or the workspace geometry. */
+#panel {
+  box-shadow: 0 1px 0 0 $panel_bg_color;
+
+  &:overview,
+  &.unlock-screen,
+  &.login-screen {
+    box-shadow: none;
+  }
+}
