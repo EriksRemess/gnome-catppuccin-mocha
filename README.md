@@ -1,12 +1,12 @@
 # gnome-catppuccin-mocha
 
-A maintainable Catppuccin Mocha recoloring of GNOME Shell 50.1, its lock
+A maintainable Catppuccin Mocha recoloring of GNOME Shell 51.0, its lock
 screen, GDM, GTK 3, and GTK 4/libadwaita. GNOME Shell and GDM are compiled from
 the same pinned upstream source and share one Catppuccin palette with the GTK
 overrides.
 
-The current snapshot has been built and checked against GNOME Shell 50.1 on
-Ubuntu 26.04.
+The current snapshot has been built and checked against GNOME Shell 51.0 on
+Ubuntu 26.10.
 
 ## How the source is organized
 
@@ -151,7 +151,7 @@ blindly to GNOME's development branch.
 
 ```sh
 gnome-shell --version
-make update-upstream UPSTREAM_REF=50.1
+make update-upstream UPSTREAM_REF=51.0
 git diff -- upstream.json vendor/gnome-shell-theme
 make clean
 make check
